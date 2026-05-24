@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Simulador meteorológico de rutas aeronáuticas con datos WRF y visualización en tiempo real.">
+    <title>Simulador Meteorologico de Rutas Aeronauticas</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Simulador Meteorologico de Rutas Aeronauticas</h1>
+    </header>
+
+    <main class="container">
+        <section class="panel controls">
+            <h2>Controles</h2>
+
+            <div class="form-group">
+                <label for="origin">Ciudad origen:</label>
+                <select id="origin"></select>
+            </div>
+
+            <div class="form-group">
+                <label for="destination">Ciudad destino:</label>
+                <select id="destination"></select>
+            </div>
+
+            <div class="form-group">
+                <label for="field">Campo meteorologico:</label>
+                <select id="field"></select>
+            </div>
+
+            <div class="form-group">
+                <label for="timeIndex">Timestep:</label>
+                <select id="timeIndex"></select>
+            </div>
+
+            <div class="button-group">
+                <button id="btnMap" class="btn btn-primary">Generar mapa</button>
+                <button id="btnRoute" class="btn btn-secondary">Simular ruta</button>
+            </div>
+        </section>
+
+        <section class="panel output">
+            <h2>Resultado</h2>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Procesando...</p>
+            </div>
+
+            <div id="error" class="error hidden"></div>
+
+            <div id="mapContainer" class="image-container hidden">
+                <h3 id="mapTitle"></h3>
+                <img id="mapImage" src="" alt="Mapa meteorologico">
+            </div>
+
+            <div id="routeContainer" class="image-container hidden">
+                <h3 id="routeTitle"></h3>
+                <img id="routeImage" src="" alt="Perfil de ruta">
+                <div id="routeSummary" class="summary hidden"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
