@@ -32,7 +32,7 @@ def _get_projection():
 
 
 def plot_surface_wind(time_index: int = 0) -> tuple[str, str]:
-    """Plot 10m wind speed with wind barbs."""
+    """Plot 10m wind speed with streamlines."""
     proj = _get_projection()
     lat, lon = wrf_processing.get_coordinates()
 
@@ -51,10 +51,10 @@ def plot_surface_wind(time_index: int = 0) -> tuple[str, str]:
         cf = ax.contourf(lon, lat, speed, levels=20, cmap="YlOrRd", transform=ccrs.PlateCarree())
         fig.colorbar(cf, ax=ax, label="Wind Speed (m/s)", shrink=0.8)
 
-        skip = (slice(None, None, 20), slice(None, None, 20))
-        ax.barbs(
+        skip = (slice(None, None, 5), slice(None, None, 5))
+        ax.streamplot(
             lon[skip], lat[skip], u10[skip], v10[skip],
-            length=5, color="black", transform=ccrs.PlateCarree(),
+            color="black", linewidth=0.8, density=1.5, arrowsize=0.8,
         )
 
         times = wrf_processing.get_times()
@@ -210,7 +210,7 @@ def plot_level_zt(pressure_level: float, time_index: int = 0) -> tuple[str, str]
 
 
 def plot_jet_stream(time_index: int = 0) -> tuple[str, str]:
-    """Plot wind speed at 300 hPa (jet stream) with wind barbs."""
+    """Plot wind speed at 300 hPa (jet stream) with streamlines."""
     proj = _get_projection()
     lat, lon = wrf_processing.get_coordinates()
 
@@ -226,10 +226,10 @@ def plot_jet_stream(time_index: int = 0) -> tuple[str, str]:
         cf = ax.contourf(lon, lat, speed, levels=20, cmap="YlOrRd", transform=ccrs.PlateCarree())
         fig.colorbar(cf, ax=ax, label="Wind Speed (m/s)", shrink=0.8)
 
-        skip = (slice(None, None, 20), slice(None, None, 20))
-        ax.barbs(
+        skip = (slice(None, None, 5), slice(None, None, 5))
+        ax.streamplot(
             lon[skip], lat[skip], u[skip], v[skip],
-            length=5, color="black", transform=ccrs.PlateCarree(),
+            color="black", linewidth=0.8, density=1.5, arrowsize=0.8,
         )
 
         times = wrf_processing.get_times()
