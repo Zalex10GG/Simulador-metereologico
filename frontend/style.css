@@ -239,6 +239,17 @@ header h1 {
     box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
 }
 
+.btn-accent {
+    background: #8b5cf6;
+    color: white;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.btn-accent:hover:not(:disabled) {
+    background: #7c3aed;
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+}
+
 /* Outputs & Results */
 .output-panel {
     display: flex;
@@ -451,12 +462,11 @@ header h1 {
 }
 
 .risk-active {
+    box-shadow: 0 0 8px currentColor;
     animation: neon-blink 2s infinite alternate;
 }
 
 .risk-safe {
-    background-color: #475569 !important;
-    color: #475569 !important;
     box-shadow: none !important;
 }
 

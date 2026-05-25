@@ -5,6 +5,7 @@ const state = {
     fields: [],
     timeCount: 0,
     loading: false,
+    initialized: false,
 };
 
 function showLoading(show) {
@@ -16,6 +17,11 @@ function showLoading(show) {
         $("#welcomeContainer").classList.add("hidden");
         clearError();
     }
+}
+
+function showInitLoading(show) {
+    $("#initLoading").classList.toggle("hidden", !show);
+    $("#welcomeContainer").classList.toggle("hidden", show);
 }
 
 function showError(msg) {
@@ -135,6 +141,7 @@ async function simulateRoute() {
     clearError();
     const origin = $("#origin").value;
     const destination = $("#destination").value;
+    const cruiseLevel = $("#cruiseLevel").value;
     
     if (origin === destination) {
         showError("La ciudad de origen y destino deben ser diferentes.");
@@ -146,14 +153,16 @@ async function simulateRoute() {
     showLoading(true);
 
     try {
-        const data = await postJSON("/api/route", { origin, destination });
+        const data = await postJSON("/api/route", { origin, destination, cruise_level: cruiseLevel });
 
         showImage("routeContainer", "routeTitle", "routeImage", data.image_base64, `Ruta Simulación: ${data.route.origin} a ${data.route.destination}`);
+        if (data.route_map_base64) {
+            $("#routeMapImage").src = data.route_map_base64;
+        }
 
         const summary = $("#routeSummary");
         summary.classList.remove("hidden");
         
-        // Premium structured card injection
         summary.innerHTML = `
             <div class="summary-item">
                 <span class="summary-label">Distancia de Vuelo</span>
@@ -164,7 +173,7 @@ async function simulateRoute() {
                 <span class="summary-value">${data.route.flight_time_minutes} min</span>
             </div>
             <div class="summary-item">
-                <span class="summary-label">Altitud Crucero</span>
+                <span class="summary-label">Nivel Crucero</span>
                 <span class="summary-value">${data.route.cruise_level}</span>
             </div>
             
@@ -173,15 +182,23 @@ async function simulateRoute() {
                 <div class="risks-grid">
                     <div class="risk-card">
                         <span class="risk-name">Engelamiento</span>
-                        <span class="risk-status ${data.risks.icing ? 'risk-active' : 'risk-safe'}" style="color: #06b6d4; background-color: #06b6d4;"></span>
+                        <span class="risk-status ${data.risks.icing ? 'risk-active' : 'risk-safe'}" style="color: #06b6d4; background-color: ${data.risks.icing ? '#06b6d4' : '#475569'};"></span>
                     </div>
                     <div class="risk-card">
                         <span class="risk-name">Cizalladura</span>
-                        <span class="risk-status ${data.risks.wind_shear ? 'risk-active' : 'risk-safe'}" style="color: #f59e0b; background-color: #f59e0b;"></span>
+                        <span class="risk-status ${data.risks.wind_shear ? 'risk-active' : 'risk-safe'}" style="color: #f59e0b; background-color: ${data.risks.wind_shear ? '#f59e0b' : '#475569'};"></span>
                     </div>
                     <div class="risk-card">
-                        <span class="risk-name">Convección / Visib.</span>
-                        <span class="risk-status ${data.risks.convection_visibility ? 'risk-active' : 'risk-safe'}" style="color: #ef4444; background-color: #ef4444;"></span>
+                        <span class="risk-name">Turbulencia</span>
+                        <span class="risk-status ${data.risks.turbulence ? 'risk-active' : 'risk-safe'}" style="color: #a855f7; background-color: ${data.risks.turbulence ? '#a855f7' : '#475569'};"></span>
+                    </div>
+                    <div class="risk-card">
+                        <span class="risk-name">Convección</span>
+                        <span class="risk-status ${data.risks.convection ? 'risk-active' : 'risk-safe'}" style="color: #ef4444; background-color: ${data.risks.convection ? '#ef4444' : '#475569'};"></span>
+                    </div>
+                    <div class="risk-card">
+                        <span class="risk-name">Baja Visibilidad</span>
+                        <span class="risk-status ${data.risks.visibility ? 'risk-active' : 'risk-safe'}" style="color: #eab308; background-color: ${data.risks.visibility ? '#eab308' : '#475569'};"></span>
                     </div>
                 </div>
             </div>
@@ -194,11 +211,61 @@ async function simulateRoute() {
     }
 }
 
+let animating = false;
+let animTimer = null;
+
+async function animateTimesteps() {
+    if (animating) {
+        animating = false;
+        $("#btnAnimate").innerHTML = '<span class="btn-icon">▶</span> Animar Timesteps';
+        clearInterval(animTimer);
+        return;
+    }
+
+    const field = $("#field").value;
+    const options = $("#timeIndex").options;
+    if (options.length < 2) return;
+
+    animating = true;
+    $("#btnAnimate").innerHTML = '<span class="btn-icon">⏹</span> Detener';
+
+    const tick = async () => {
+        if (!animating) return;
+        const idx = parseInt($("#timeIndex").value, 10);
+        const nextIdx = (idx + 1) % options.length;
+        $("#timeIndex").selectedIndex = nextIdx;
+        try {
+            const data = await postJSON("/api/map", { field, time_index: nextIdx });
+            $("#mapContainer").classList.remove("hidden");
+            $("#mapTitle").textContent = data.title;
+            $("#mapImage").src = data.image_base64;
+            $("#welcomeContainer").classList.add("hidden");
+        } catch (e) {
+            showError(e.message);
+            animating = false;
+            $("#btnAnimate").innerHTML = '<span class="btn-icon">▶</span> Animar Timesteps';
+            clearInterval(animTimer);
+            return;
+        }
+    };
+
+    tick();
+    animTimer = setInterval(tick, 2000);
+}
+
 async function init() {
-    await Promise.all([loadCities(), loadFields(), loadTimeInfo()]);
+    showInitLoading(true);
+    try {
+        await Promise.all([loadCities(), loadFields(), loadTimeInfo()]);
+    } catch (e) {
+        showError(`Error inicializando: ${e.message}`);
+    } finally {
+        showInitLoading(false);
+    }
 
     $("#btnMap").addEventListener("click", generateMap);
     $("#btnRoute").addEventListener("click", simulateRoute);
+    $("#btnAnimate").addEventListener("click", animateTimesteps);
 }
 
 init();

@@ -7,8 +7,9 @@ from pathlib import Path
 
 import numpy as np
 import xarray as xr
+import xwrf
 
-from src.config import G, WRF_FILE_PATTERN, DATA_DIR, P0, R_CP
+from src.config import G, GAMMA, P0, R_CP, R_DRY, WRF_FILE_PATTERN, DATA_DIR
 
 _datasets: list[xr.Dataset] = []
 _times: list[datetime] = []
@@ -31,6 +32,8 @@ def _scan_and_load() -> None:
 
     for filepath in files:
         ds = xr.open_dataset(filepath, engine="netcdf4")
+        if hasattr(ds, "xwrf"):
+            _ = ds.xwrf
         _datasets.append(ds)
 
         # Parse timestamp from filename, format: wrfout_YYYY-MM-DD_HH_MM_SS.nc
@@ -152,6 +155,26 @@ def compute_precipitation(time_index: int = 0) -> np.ndarray:
     """Compute accumulated precipitation RAINC + RAINNC."""
     ds = get_dataset(time_index)
     return ds["RAINC"].isel(Time=0).values + ds["RAINNC"].isel(Time=0).values
+
+
+def compute_mslp(time_index: int = 0) -> np.ndarray:
+    """Reduce surface pressure to mean sea level using the barometric formula.
+
+    Uses PSFC, terrain height HGT, and 2m temperature T2 with a standard
+    lapse rate (gamma = 0.0065 K/m) for the reduction.
+    MSLP = PSFC * exp( g * HGT / (R_d * T_virtual) )
+    """
+    ds = get_dataset(time_index)
+    psfc = ds["PSFC"].isel(Time=0).values
+    hgt = ds["HGT"].isel(Time=0).values
+    t2 = ds["T2"].isel(Time=0).values
+
+    t_virtual = t2 + 0.5 * GAMMA * hgt
+    t_virtual = np.maximum(t_virtual, 250.0)
+    exponent = (G * hgt) / (R_DRY * t_virtual)
+    exponent = np.minimum(exponent, 5.0)
+    mslp = psfc * np.exp(exponent)
+    return mslp
 
 
 def _interpolate_vertical(p_full: np.ndarray, var_full: np.ndarray, p_target: float) -> np.ndarray:

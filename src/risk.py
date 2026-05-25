@@ -5,6 +5,8 @@ import numpy as np
 from src.config import (
     CONVECTION_PRECIP_THRESHOLD,
     ICING_HYDROMETEOR_THRESHOLD,
+    TURBULENCE_WIND_SPEED_THRESHOLD,
+    VISIBILITY_QCLOUD_THRESHOLD,
     WIND_SHEAR_HORIZONTAL_THRESHOLD,
     WIND_SHEAR_VERTICAL_THRESHOLD,
 )
@@ -214,11 +216,70 @@ def compute_wind_shear_risk(profile: list[dict]) -> list[bool]:
     return risks
 
 
-def compute_convection_visibility_risk(profile: list[dict]) -> list[bool]:
-    """Compute approximate convection and visibility risk along the route.
+def compute_turbulence_risk(profile: list[dict]) -> list[bool]:
+    """Compute Clear Air Turbulence (CAT) risk along the route.
 
-    Uses precipitation rate, total hydrometeors (QCLOUD, QRAIN, QGRAUP) and vertical
-    velocity (W) to identify convective and flight safety hazards.
+    Flags points where horizontal wind speed magnitude exceeds a threshold
+    (indicating potential for CAT at flight level), combined with significant
+    gradients in wind speed between consecutive route points.
+    """
+    _enrich_profile_with_grid_indices(profile)
+    risks = []
+    distinct_times = _collect_distinct_times(profile)
+
+    u_cache = {}
+    v_cache = {}
+    for t in distinct_times:
+        ds = wrf_processing.get_dataset(t)
+        u_cache[t] = wrf_processing.destagger_u(ds["U"]).isel(Time=0).values
+        v_cache[t] = wrf_processing.destagger_v(ds["V"]).isel(Time=0).values
+
+    n_levels = next(iter(u_cache.values())).shape[0] if u_cache else 47
+    prev_speed = None
+
+    for i, point in enumerate(profile):
+        lat_idx, lon_idx = point["grid_idx"]
+        flight_level_left = min(point.get("level_idx_left", 0), n_levels - 1)
+        flight_level_right = min(point.get("level_idx_right", 0), n_levels - 1)
+
+        t_left = point.get("time_idx_left", 0)
+        t_right = point.get("time_idx_right", 0)
+        t_frac = point.get("time_frac", 0.0)
+
+        u0 = float(u_cache[t_left][flight_level_left, lat_idx, lon_idx])
+        v0 = float(v_cache[t_left][flight_level_left, lat_idx, lon_idx])
+        if t_left != t_right and t_frac > 0:
+            u1 = float(u_cache[t_right][flight_level_right, lat_idx, lon_idx])
+            v1 = float(v_cache[t_right][flight_level_right, lat_idx, lon_idx])
+            u_at_point = _interpolate_temporal(u0, u1, t_frac)
+            v_at_point = _interpolate_temporal(v0, v1, t_frac)
+        else:
+            u_at_point = u0
+            v_at_point = v0
+
+        speed = np.sqrt(u_at_point**2 + v_at_point**2)
+        turbulence = False
+
+        if speed > TURBULENCE_WIND_SPEED_THRESHOLD:
+            turbulence = True
+
+        if prev_speed is not None and i > 0:
+            dspeed = abs(speed - prev_speed)
+            dx_km = profile[i]["distance_km"] - profile[i - 1]["distance_km"]
+            if dx_km > 0.01 and dspeed / dx_km > WIND_SHEAR_HORIZONTAL_THRESHOLD * 50:
+                turbulence = True
+
+        risks.append(turbulence)
+        prev_speed = speed
+
+    return risks
+
+
+def compute_convection_risk(profile: list[dict]) -> list[bool]:
+    """Compute convective activity risk along the route.
+
+    Uses precipitation rate, total hydrometeors (QCLOUD, QRAIN, QGRAUP) and
+    vertical velocity (W) to identify convective cells.
     """
     _enrich_profile_with_grid_indices(profile)
     risks = []
@@ -277,7 +338,6 @@ def compute_convection_visibility_risk(profile: list[dict]) -> list[bool]:
 
         total_hydro = qc_val + qr_val + qg_val
 
-        # Convective and flight safety risks
         convection = (
             precip_rate > CONVECTION_PRECIP_THRESHOLD
             or total_hydro > ICING_HYDROMETEOR_THRESHOLD * 10
@@ -288,11 +348,53 @@ def compute_convection_visibility_risk(profile: list[dict]) -> list[bool]:
     return risks
 
 
+def compute_visibility_risk(profile: list[dict]) -> list[bool]:
+    """Compute low visibility risk along the route using low-level cloud water as proxy.
+
+    Flags points where QCLOUD at flight level exceeds a threshold,
+    indicating potential for reduced visibility (cloud/fog encounter).
+    """
+    _enrich_profile_with_grid_indices(profile)
+    risks = []
+    distinct_times = _collect_distinct_times(profile)
+
+    hydro_cache = {}
+    for t in distinct_times:
+        hydro_cache[t] = wrf_processing.get_hydrometeors(t)
+
+    n_levels = next(iter(hydro_cache.values()))["qcloud"].shape[0] if hydro_cache else 47
+
+    for point in profile:
+        lat_idx, lon_idx = point["grid_idx"]
+        flight_level_left = min(point.get("level_idx_left", 0), n_levels - 1)
+        flight_level_right = min(point.get("level_idx_right", 0), n_levels - 1)
+
+        t_left = point.get("time_idx_left", 0)
+        t_right = point.get("time_idx_right", 0)
+        t_frac = point.get("time_frac", 0.0)
+
+        hl = hydro_cache[t_left]
+        qc0 = float(hl["qcloud"][flight_level_left, lat_idx, lon_idx])
+
+        if t_left != t_right and t_frac > 0:
+            hr = hydro_cache[t_right]
+            qc1 = float(hr["qcloud"][flight_level_right, lat_idx, lon_idx])
+            qc_val = _interpolate_temporal(qc0, qc1, t_frac)
+        else:
+            qc_val = qc0
+
+        risks.append(qc_val > VISIBILITY_QCLOUD_THRESHOLD)
+
+    return risks
+
+
 def compute_all_risks(profile: list[dict]) -> dict[str, list[bool]]:
     """Compute all risk types along the route with temporal interpolation."""
     _enrich_profile_with_grid_indices(profile)
     return {
         "icing": compute_icing_risk(profile),
         "wind_shear": compute_wind_shear_risk(profile),
-        "convection_visibility": compute_convection_visibility_risk(profile),
+        "turbulence": compute_turbulence_risk(profile),
+        "convection": compute_convection_risk(profile),
+        "visibility": compute_visibility_risk(profile),
     }

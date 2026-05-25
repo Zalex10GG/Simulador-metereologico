@@ -51,6 +51,17 @@
             </div>
 
             <div class="form-group">
+                <label for="cruiseLevel">Nivel de Vuelo</label>
+                <div class="select-wrapper">
+                    <select id="cruiseLevel">
+                        <option value="FL240">FL240 (7.315 m)</option>
+                        <option value="FL330" selected>FL330 (10.058 m)</option>
+                        <option value="FL380">FL380 (11.582 m)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
                 <label for="timeIndex">Timestep de Simulación</label>
                 <div class="select-wrapper">
                     <select id="timeIndex"></select>
@@ -64,12 +75,20 @@
                 <button id="btnRoute" class="btn btn-secondary">
                     <span class="btn-icon">⚡</span> Simular Ruta 3D
                 </button>
+                <button id="btnAnimate" class="btn btn-accent">
+                    <span class="btn-icon">▶</span> Animar Timesteps
+                </button>
             </div>
         </aside>
 
         <!-- Output Panel -->
         <section class="panel output-panel">
             <h2>Resultados e Instrumental</h2>
+
+            <div id="initLoading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Cargando datos meteorológicos...</p>
+            </div>
 
             <div id="loading" class="loading hidden">
                 <div class="spinner"></div>
@@ -104,13 +123,20 @@
                 <div class="img-wrapper">
                     <img id="routeImage" src="" alt="Perfil vertical de ruta aeronáutica">
                 </div>
+                <div class="image-header" style="margin-top: 1rem;">
+                    <h3>Trayectoria en Mapa</h3>
+                    <span class="badge badge-info">Vista Horizontal</span>
+                </div>
+                <div class="img-wrapper">
+                    <img id="routeMapImage" src="" alt="Mapa de trayectoria de vuelo">
+                </div>
                 <div id="routeSummary" class="summary hidden"></div>
             </div>
         </section>
     </main>
 
     <footer>
-        <p>&copy; 2026 AeroMetar | Datos meteorológicos WRF mesoescalares localizados de alta fidelidad.</p>
+        <p>&copy; 2026 AeroMetar | Guillermo Alba Buitrón & Alejandro Gil Getino | ⛓️⛓️Universidad de León⛓️⛓️ </p>
     </footer>
 
     <script src="/static/script.js"></script>
