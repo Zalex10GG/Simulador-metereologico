@@ -215,14 +215,13 @@ def compute_wind_shear_risk(profile: list[dict]) -> list[bool]:
 
 
 def compute_convection_visibility_risk(profile: list[dict]) -> list[bool]:
-    """Compute approximate convection/visibility risk at airports only.
+    """Compute approximate convection and visibility risk along the route.
 
-    Visibility matters at departure and arrival airports, not en route.
-    Uses precipitation rate and total hydrometeors, along with vertical velocity (W),
-    to identify strong convective hazards.
+    Uses precipitation rate, total hydrometeors (QCLOUD, QRAIN, QGRAUP) and vertical
+    velocity (W) to identify convective and flight safety hazards.
     """
     _enrich_profile_with_grid_indices(profile)
-    risks = [False] * len(profile)
+    risks = []
     distinct_times = _collect_distinct_times(profile)
 
     precip_cache = {}
@@ -236,10 +235,7 @@ def compute_convection_visibility_risk(profile: list[dict]) -> list[bool]:
     times_min = wrf_processing.get_times_minutes()
     n_levels = next(iter(hydro_cache.values()))["qcloud"].shape[0] if hydro_cache else 47
 
-    airport_indices = [0, len(profile) - 1]
-
-    for idx in airport_indices:
-        point = profile[idx]
+    for idx, point in enumerate(profile):
         lat_idx, lon_idx = point["grid_idx"]
         flight_level_left = min(point.get("level_idx_left", 0), n_levels - 1)
         flight_level_right = min(point.get("level_idx_right", 0), n_levels - 1)
@@ -281,12 +277,13 @@ def compute_convection_visibility_risk(profile: list[dict]) -> list[bool]:
 
         total_hydro = qc_val + qr_val + qg_val
 
-        risk = (
+        # Convective and flight safety risks
+        convection = (
             precip_rate > CONVECTION_PRECIP_THRESHOLD
             or total_hydro > ICING_HYDROMETEOR_THRESHOLD * 10
             or abs(w_val) > CONVECTION_W_THRESHOLD
         )
-        risks[idx] = risk
+        risks.append(convection)
 
     return risks
 

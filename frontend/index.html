@@ -3,67 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Simulador meteorológico de rutas aeronáuticas con datos WRF y visualización en tiempo real.">
-    <title>Simulador Meteorologico de Rutas Aeronauticas</title>
+    <meta name="description" content="Simulador meteorológico de rutas aeronáuticas con datos WRF en tiempo real para pilotos y planificadores.">
+    <title>AeroMetar - Simulador Meteorológico de Rutas</title>
+    <!-- Google Fonts Inter for modern layout -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+    <div class="glass-bg"></div>
+
     <header>
-        <h1>Simulador Meteorologico de Rutas Aeronauticas</h1>
+        <div class="header-content">
+            <div class="logo">
+                <span class="plane-icon">✈</span>
+                <h1>AeroMetar</h1>
+            </div>
+            <p class="subtitle">Simulador Meteorológico Mesoescalar de Rutas Aeronáuticas</p>
+        </div>
     </header>
 
     <main class="container">
-        <section class="panel controls">
-            <h2>Controles</h2>
-
+        <!-- Controls Panel -->
+        <aside class="panel controls-panel">
+            <h2>Configuración de Vuelo</h2>
+            
             <div class="form-group">
-                <label for="origin">Ciudad origen:</label>
-                <select id="origin"></select>
+                <label for="origin">Aeropuerto de Origen</label>
+                <div class="select-wrapper">
+                    <select id="origin"></select>
+                </div>
             </div>
 
             <div class="form-group">
-                <label for="destination">Ciudad destino:</label>
-                <select id="destination"></select>
+                <label for="destination">Aeropuerto de Destino</label>
+                <div class="select-wrapper">
+                    <select id="destination"></select>
+                </div>
             </div>
 
             <div class="form-group">
-                <label for="field">Campo meteorologico:</label>
-                <select id="field"></select>
+                <label for="field">Campo Meteorológico 2D</label>
+                <div class="select-wrapper">
+                    <select id="field"></select>
+                </div>
             </div>
 
             <div class="form-group">
-                <label for="timeIndex">Timestep:</label>
-                <select id="timeIndex"></select>
+                <label for="timeIndex">Timestep de Simulación</label>
+                <div class="select-wrapper">
+                    <select id="timeIndex"></select>
+                </div>
             </div>
 
             <div class="button-group">
-                <button id="btnMap" class="btn btn-primary">Generar mapa</button>
-                <button id="btnRoute" class="btn btn-secondary">Simular ruta</button>
+                <button id="btnMap" class="btn btn-primary">
+                    <span class="btn-icon">🗺</span> Generar Mapa 2D
+                </button>
+                <button id="btnRoute" class="btn btn-secondary">
+                    <span class="btn-icon">⚡</span> Simular Ruta 3D
+                </button>
             </div>
-        </section>
+        </aside>
 
-        <section class="panel output">
-            <h2>Resultado</h2>
+        <!-- Output Panel -->
+        <section class="panel output-panel">
+            <h2>Resultados e Instrumental</h2>
 
             <div id="loading" class="loading hidden">
                 <div class="spinner"></div>
-                <p>Procesando...</p>
+                <p>Analizando la atmósfera mesoescalar...</p>
             </div>
 
             <div id="error" class="error hidden"></div>
 
-            <div id="mapContainer" class="image-container hidden">
-                <h3 id="mapTitle"></h3>
-                <img id="mapImage" src="" alt="Mapa meteorologico">
+            <div id="welcomeContainer" class="welcome-box">
+                <div class="welcome-icon">📡</div>
+                <h3>Instrumental Listo</h3>
+                <p>Selecciona las ciudades y campos meteorológicos, luego haz clic en <strong>Generar Mapa 2D</strong> para analizar la situación horizontal, o en <strong>Simular Ruta 3D</strong> para simular el perfil vertical de vuelo con sus riesgos asociados.</p>
             </div>
 
+            <!-- Horizontal Map Output -->
+            <div id="mapContainer" class="image-container hidden">
+                <div class="image-header">
+                    <h3 id="mapTitle"></h3>
+                    <span class="badge badge-info">Vista Horizontal</span>
+                </div>
+                <div class="img-wrapper">
+                    <img id="mapImage" src="" alt="Mapa meteorológico horizontal">
+                </div>
+            </div>
+
+            <!-- Route Cross-Section Output -->
             <div id="routeContainer" class="image-container hidden">
-                <h3 id="routeTitle"></h3>
-                <img id="routeImage" src="" alt="Perfil de ruta">
+                <div class="image-header">
+                    <h3 id="routeTitle"></h3>
+                    <span class="badge badge-warning">Perfil Vertical</span>
+                </div>
+                <div class="img-wrapper">
+                    <img id="routeImage" src="" alt="Perfil vertical de ruta aeronáutica">
+                </div>
                 <div id="routeSummary" class="summary hidden"></div>
             </div>
         </section>
     </main>
+
+    <footer>
+        <p>&copy; 2026 AeroMetar | Datos meteorológicos WRF mesoescalares localizados de alta fidelidad.</p>
+    </footer>
 
     <script src="/static/script.js"></script>
 </body>
