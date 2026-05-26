@@ -259,6 +259,58 @@ async def export_route(req: schemas.RouteRequest):
     })
 
 
+@app.post("/api/sounding", response_model=schemas.SoundingResponse)
+async def generate_sounding(req: schemas.SoundingRequest):
+    if req.lat is not None and req.lon is not None:
+        lat = req.lat
+        lon = req.lon
+    elif req.x_pct is not None and req.y_pct is not None:
+        bounds = wrf_processing.get_domain_bounds()
+        x_min_ax, x_max_ax = 0.08, 0.84
+        y_min_ax, y_max_ax = 0.11, 0.89
+        
+        x_scaled = (req.x_pct - x_min_ax) / (x_max_ax - x_min_ax)
+        x_scaled = max(0.0, min(1.0, x_scaled))
+        
+        y_scaled = (req.y_pct - y_min_ax) / (y_max_ax - y_min_ax)
+        y_scaled = max(0.0, min(1.0, y_scaled))
+        
+        lon = bounds["lon_min"] + x_scaled * (bounds["lon_max"] - bounds["lon_min"])
+        lat = bounds["lat_max"] - y_scaled * (bounds["lat_max"] - bounds["lat_min"])
+    else:
+        raise HTTPException(status_code=400, detail="Debe especificar lat/lon o x_pct/y_pct")
+
+    if not wrf_processing.is_in_domain(lat, lon):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Coordenadas seleccionadas ({lat:.2f}, {lon:.2f}) fuera del dominio WRF"
+        )
+
+    n_times = len(wrf_processing.get_times())
+    if req.time_index < 0 or req.time_index >= n_times:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Time index {req.time_index} out of range [0, {n_times - 1}]",
+        )
+
+    try:
+        lat_idx, lon_idx = wrf_processing.find_nearest_grid_point(lat, lon)
+        profile = wrf_processing.get_vertical_profile(lat_idx, lon_idx, req.time_index)
+        times = wrf_processing.get_times()
+        time_label = times[req.time_index] if req.time_index < len(times) else f"t={req.time_index}"
+        image_base64, title = plotting.plot_sounding(profile, lat, lon, time_label)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generando el sondeo: {str(e)}")
+
+    return schemas.SoundingResponse(
+        image_base64=image_base64,
+        title=title,
+        lat=lat,
+        lon=lon
+    )
+
+
+
 @app.get("/")
 async def serve_frontend():
     return FileResponse(FRONTEND_DIR / "index.html")
