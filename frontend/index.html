@@ -134,6 +134,26 @@
             </div>
         </section>
     </main>
+    
+    <!-- Sounding Modal -->
+    <div id="soundingModal" class="modal hidden">
+        <div class="modal-content glass-bg">
+            <div class="modal-header">
+                <h3 id="soundingTitle">Sondeo Atmosférico</h3>
+                <button id="closeSoundingModal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem;">
+                <div id="soundingLoading" class="loading hidden" style="padding: 1.5rem 0;">
+                    <div class="spinner"></div>
+                    <p>Generando sondeo termodinámico (Skew-T y Odógrafa)...</p>
+                </div>
+                <div id="soundingImgWrapper" class="img-wrapper hidden" style="width: 100%; display: flex; justify-content: center;">
+                    <img id="soundingImage" src="" alt="Sondeo Skew-T y Odógrafa" style="max-height: 70vh; width: auto; max-width: 100%;">
+                </div>
+                <div id="soundingCoords" class="sounding-coords-info"></div>
+            </div>
+        </div>
+    </div>
 
     <footer>
         <p>&copy; 2026 AeroMetar | Guillermo Alba Buitrón & Alejandro Gil Getino | ⛓️⛓️Universidad de León⛓️⛓️ </p>

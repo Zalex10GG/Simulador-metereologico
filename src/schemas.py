@@ -53,3 +53,19 @@ class RouteResponse(BaseModel):
     route_map_base64: str | None = None
     route: RouteInfo
     risks: RiskSummary
+
+
+class SoundingRequest(BaseModel):
+    lat: float | None = None
+    lon: float | None = None
+    x_pct: float | None = None
+    y_pct: float | None = None
+    time_index: int = 0
+
+
+class SoundingResponse(BaseModel):
+    image_base64: str
+    title: str
+    lat: float
+    lon: float
+

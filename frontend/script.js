@@ -253,6 +253,46 @@ async function animateTimesteps() {
     animTimer = setInterval(tick, 2000);
 }
 
+async function openSounding(e) {
+    const rect = e.target.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const x_pct = x / rect.width;
+    const y_pct = y / rect.height;
+
+    const timeIndex = parseInt($("#timeIndex").value, 10);
+
+    const modal = $("#soundingModal");
+    const imgWrapper = $("#soundingImgWrapper");
+    const loading = $("#soundingLoading");
+    const titleEl = $("#soundingTitle");
+    const imgEl = $("#soundingImage");
+    const coordsEl = $("#soundingCoords");
+
+    modal.classList.remove("hidden");
+    loading.classList.remove("hidden");
+    imgWrapper.classList.add("hidden");
+    coordsEl.textContent = "";
+
+    try {
+        const data = await postJSON("/api/sounding", {
+            x_pct: x_pct,
+            y_pct: y_pct,
+            time_index: timeIndex
+        });
+
+        loading.classList.add("hidden");
+        imgWrapper.classList.remove("hidden");
+        imgEl.src = data.image_base64;
+        titleEl.textContent = data.title;
+        coordsEl.textContent = `Punto Seleccionado — Lat: ${data.lat.toFixed(3)}° | Lon: ${data.lon.toFixed(3)}°`;
+    } catch (err) {
+        loading.classList.add("hidden");
+        modal.classList.add("hidden");
+        showError(`Error generando el sondeo: ${err.message}`);
+    }
+}
+
 async function init() {
     showInitLoading(true);
     try {
@@ -266,6 +306,18 @@ async function init() {
     $("#btnMap").addEventListener("click", generateMap);
     $("#btnRoute").addEventListener("click", simulateRoute);
     $("#btnAnimate").addEventListener("click", animateTimesteps);
+    $("#mapImage").addEventListener("click", openSounding);
+    
+    $("#closeSoundingModal").addEventListener("click", () => {
+        $("#soundingModal").classList.add("hidden");
+    });
+    
+    $("#soundingModal").addEventListener("click", (e) => {
+        if (e.target === $("#soundingModal")) {
+            $("#soundingModal").classList.add("hidden");
+        }
+    });
 }
 
 init();
+
