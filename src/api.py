@@ -2,12 +2,13 @@
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from src import cities, plotting, risk, routing, schemas, wrf_processing
-from src.config import FRONTEND_DIR
+from src.config import CRUISE_LEVELS, FRONTEND_DIR
 
 
 @asynccontextmanager
@@ -35,6 +36,7 @@ app.add_middleware(
 FIELDS = {
     "surface_wind": {"id": "surface_wind", "name": "10m Wind", "description": "Wind speed and direction at 10m"},
     "surface_pressure": {"id": "surface_pressure", "name": "Surface Pressure", "description": "Surface pressure (PSFC)"},
+    "mslp": {"id": "mslp", "name": "MSLP", "description": "Mean Sea Level Pressure (reduced from PSFC using barometric formula)"},
     "surface_temperature": {"id": "surface_temperature", "name": "2m Temperature", "description": "Temperature at 2m in Celsius"},
     "surface_precipitation": {"id": "surface_precipitation", "name": "Accumulated Precipitation", "description": "RAINC + RAINNC"},
     "z_t_850": {"id": "z_t_850", "name": "850 hPa", "description": "Geopotential height and temperature at 850 hPa"},
@@ -93,6 +95,11 @@ async def simulate_route(req: schemas.RouteRequest):
     if req.origin.lower() == req.destination.lower():
         raise HTTPException(status_code=400, detail="Origin and destination must be different cities")
 
+    cruise_level_label = req.cruise_level
+    if cruise_level_label not in CRUISE_LEVELS:
+        raise HTTPException(status_code=400, detail=f"Unknown cruise level: {cruise_level_label}. Available: {list(CRUISE_LEVELS.keys())}")
+    cruise_level_m = CRUISE_LEVELS[cruise_level_label]
+
     origin_city = cities.get_city(req.origin)
     if origin_city is None:
         raise HTTPException(status_code=400, detail=f"Unknown origin city: {req.origin}")
@@ -143,7 +150,7 @@ async def simulate_route(req: schemas.RouteRequest):
             ),
         )
 
-    profile = routing.compute_flight_profile(route_points, total_distance_km)
+    profile = routing.compute_flight_profile(route_points, total_distance_km, cruise_level_m)
     profile = wrf_processing.enrich_profile_with_temporal_info(profile, flight_time_min)
     profile = wrf_processing.enrich_profile_with_vertical_levels(profile)
 
@@ -162,21 +169,94 @@ async def simulate_route(req: schemas.RouteRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating route plot: {str(e)}")
 
+    try:
+        route_map_base64, _ = plotting.plot_route_map(
+            route_points,
+            req.origin,
+            req.destination,
+            (origin_city["lat"], origin_city["lon"]),
+            (dest_city["lat"], dest_city["lon"]),
+        )
+    except Exception as e:
+        route_map_base64 = None
+
     return schemas.RouteResponse(
         image_base64=image_base64,
+        route_map_base64=route_map_base64,
         route=schemas.RouteInfo(
             origin=req.origin,
             destination=req.destination,
             distance_km=round(total_distance_km, 1),
             flight_time_minutes=round(flight_time_min, 1),
-            cruise_level="FL330",
+            cruise_level=cruise_level_label,
         ),
         risks=schemas.RiskSummary(
             icing=any(risks["icing"]),
             wind_shear=any(risks["wind_shear"]),
-            convection_visibility=any(risks["convection_visibility"]),
+            turbulence=any(risks["turbulence"]),
+            convection=any(risks["convection"]),
+            visibility=any(risks["visibility"]),
         ),
     )
+
+
+@app.post("/api/route/export")
+async def export_route(req: schemas.RouteRequest):
+    """Export route data as JSON with full waypoint information."""
+    origin_city = cities.get_city(req.origin)
+    dest_city = cities.get_city(req.destination)
+    if origin_city is None or dest_city is None:
+        raise HTTPException(status_code=400, detail="Unknown city")
+
+    cruise_level_label = req.cruise_level
+    cruise_level_m = CRUISE_LEVELS.get(cruise_level_label, CRUISE_LEVELS["FL330"])
+
+    route_points = routing.great_circle_points(
+        origin_city["lat"], origin_city["lon"],
+        dest_city["lat"], dest_city["lon"],
+    )
+    total_distance_km = routing.haversine_km(
+        origin_city["lat"], origin_city["lon"],
+        dest_city["lat"], dest_city["lon"],
+    )
+    flight_time_min = routing.compute_flight_time_minutes(total_distance_km)
+    profile = routing.compute_flight_profile(route_points, total_distance_km, cruise_level_m)
+    profile = wrf_processing.enrich_profile_with_temporal_info(profile, flight_time_min)
+    profile = wrf_processing.enrich_profile_with_vertical_levels(profile)
+    risks = risk.compute_all_risks(profile)
+
+    waypoints = []
+    for i, (rp, pp) in enumerate(zip(route_points, profile)):
+        waypoints.append({
+            "index": i,
+            "lat": round(rp["lat"], 4),
+            "lon": round(rp["lon"], 4),
+            "distance_km": round(rp["distance_km"], 1),
+            "altitude_m": round(pp["altitude_m"], 1),
+            "icing": bool(risks["icing"][i]),
+            "wind_shear": bool(risks["wind_shear"][i]),
+            "turbulence": bool(risks["turbulence"][i]),
+            "convection": bool(risks["convection"][i]),
+            "visibility": bool(risks["visibility"][i]),
+        })
+
+    return JSONResponse({
+        "route": {
+            "origin": origin_city["name"],
+            "destination": dest_city["name"],
+            "distance_km": round(total_distance_km, 1),
+            "flight_time_minutes": round(flight_time_min, 1),
+            "cruise_level": cruise_level_label,
+        },
+        "waypoints": waypoints,
+        "risks_summary": {
+            "icing": any(risks["icing"]),
+            "wind_shear": any(risks["wind_shear"]),
+            "turbulence": any(risks["turbulence"]),
+            "convection": any(risks["convection"]),
+            "visibility": any(risks["visibility"]),
+        },
+    })
 
 
 @app.get("/")

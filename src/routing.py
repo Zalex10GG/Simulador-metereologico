@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 
-from src.config import CRUISE_LEVEL_M, CRUISE_SPEED_KMH, ROUTE_NUM_POINTS
+from src.config import CRUISE_SPEED_KMH, ROUTE_NUM_POINTS
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -61,24 +61,24 @@ def great_circle_points(
 
 
 def compute_flight_profile(
-    route_points: list[dict], total_distance_km: float
+    route_points: list[dict], total_distance_km: float, cruise_level_m: float = 10058.4
 ) -> list[dict]:
     """Compute vertical flight profile for route points.
 
-    First 20%: linear ascent from surface to FL330.
-    Middle 60%: cruise at FL330.
-    Last 20%: linear descent from FL330 to surface.
+    First 20%: linear ascent from surface to cruise level.
+    Middle 60%: cruise at cruise level.
+    Last 20%: linear descent from cruise level to surface.
     """
     profile = []
     for point in route_points:
         frac = point["distance_km"] / total_distance_km if total_distance_km > 0 else 0.0
 
         if frac <= 0.2:
-            altitude = (frac / 0.2) * CRUISE_LEVEL_M
+            altitude = (frac / 0.2) * cruise_level_m
         elif frac <= 0.8:
-            altitude = CRUISE_LEVEL_M
+            altitude = cruise_level_m
         else:
-            altitude = ((1.0 - frac) / 0.2) * CRUISE_LEVEL_M
+            altitude = ((1.0 - frac) / 0.2) * cruise_level_m
 
         profile.append({
             "lat": point["lat"],

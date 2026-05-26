@@ -29,6 +29,7 @@ class MapResponse(BaseModel):
 class RouteRequest(BaseModel):
     origin: str
     destination: str
+    cruise_level: str = "FL330"
 
 
 class RouteInfo(BaseModel):
@@ -42,10 +43,13 @@ class RouteInfo(BaseModel):
 class RiskSummary(BaseModel):
     icing: bool
     wind_shear: bool
-    convection_visibility: bool
+    turbulence: bool
+    convection: bool
+    visibility: bool
 
 
 class RouteResponse(BaseModel):
     image_base64: str
+    route_map_base64: str | None = None
     route: RouteInfo
     risks: RiskSummary

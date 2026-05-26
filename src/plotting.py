@@ -32,7 +32,7 @@ def _get_projection():
 
 
 def plot_surface_wind(time_index: int = 0) -> tuple[str, str]:
-    """Plot 10m wind speed with direction arrows."""
+    """Plot 10m wind speed with streamlines."""
     proj = _get_projection()
     lat, lon = wrf_processing.get_coordinates()
 
@@ -40,12 +40,6 @@ def plot_surface_wind(time_index: int = 0) -> tuple[str, str]:
     ds = wrf_processing.get_dataset(time_index)
     u10 = ds["U10"].isel(Time=0).values
     v10 = ds["V10"].isel(Time=0).values
-
-    # Normalize components for direction-only arrows
-    norm10 = np.sqrt(u10**2 + v10**2)
-    norm10[norm10 == 0] = 1.0
-    u10_dir = u10 / norm10
-    v10_dir = v10 / norm10
 
     fig, ax = plt.subplots(figsize=(12, 8), subplot_kw={"projection": proj})
     try:
@@ -57,10 +51,10 @@ def plot_surface_wind(time_index: int = 0) -> tuple[str, str]:
         cf = ax.contourf(lon, lat, speed, levels=20, cmap="YlOrRd", transform=ccrs.PlateCarree())
         fig.colorbar(cf, ax=ax, label="Wind Speed (m/s)", shrink=0.8)
 
-        skip = (slice(None, None, 20), slice(None, None, 20))
-        ax.quiver(
-            lon[skip], lat[skip], u10_dir[skip], v10_dir[skip],
-            color="black", scale=50, width=0.003, transform=ccrs.PlateCarree(),
+        skip = (slice(None, None, 5), slice(None, None, 5))
+        ax.streamplot(
+            lon[skip], lat[skip], u10[skip], v10[skip],
+            color="black", linewidth=0.8, density=1.5, arrowsize=0.8,
         )
 
         times = wrf_processing.get_times()
@@ -122,6 +116,33 @@ def plot_surface_temperature(time_index: int = 0) -> tuple[str, str]:
         ax.set_title(f"2m Temperature - {time_label}")
 
         return fig_to_base64(fig), f"2m Temperature - {time_label}"
+    except Exception:
+        plt.close(fig)
+        raise
+
+
+def plot_mslp(time_index: int = 0) -> tuple[str, str]:
+    """Plot Mean Sea Level Pressure."""
+    proj = _get_projection()
+    lat, lon = wrf_processing.get_coordinates()
+
+    mslp = wrf_processing.compute_mslp(time_index) / 100.0
+
+    fig, ax = plt.subplots(figsize=(12, 8), subplot_kw={"projection": proj})
+    try:
+        ax.set_extent([lon.min(), lon.max(), lat.min(), lat.max()], crs=proj)
+        ax.add_feature(cfeature.COASTLINE, linewidth=0.8)
+        ax.add_feature(cfeature.BORDERS, linewidth=0.5)
+        ax.gridlines(draw_labels=True, linestyle="--", alpha=0.5)
+
+        cf = ax.contourf(lon, lat, mslp, levels=20, cmap="viridis", transform=ccrs.PlateCarree())
+        fig.colorbar(cf, ax=ax, label="MSLP (hPa)", shrink=0.8)
+
+        times = wrf_processing.get_times()
+        time_label = times[time_index] if time_index < len(times) else f"t={time_index}"
+        ax.set_title(f"Mean Sea Level Pressure - {time_label}")
+
+        return fig_to_base64(fig), f"Mean Sea Level Pressure - {time_label}"
     except Exception:
         plt.close(fig)
         raise
@@ -189,17 +210,11 @@ def plot_level_zt(pressure_level: float, time_index: int = 0) -> tuple[str, str]
 
 
 def plot_jet_stream(time_index: int = 0) -> tuple[str, str]:
-    """Plot wind speed at 300 hPa (jet stream)."""
+    """Plot wind speed at 300 hPa (jet stream) with streamlines."""
     proj = _get_projection()
     lat, lon = wrf_processing.get_coordinates()
 
     u, v, speed = wrf_processing.get_wind_at_pressure_level(300, time_index)
-
-    # Normalize components for direction-only arrows
-    norm = np.sqrt(u**2 + v**2)
-    norm[norm == 0] = 1.0
-    u_dir = u / norm
-    v_dir = v / norm
 
     fig, ax = plt.subplots(figsize=(12, 8), subplot_kw={"projection": proj})
     try:
@@ -211,10 +226,10 @@ def plot_jet_stream(time_index: int = 0) -> tuple[str, str]:
         cf = ax.contourf(lon, lat, speed, levels=20, cmap="YlOrRd", transform=ccrs.PlateCarree())
         fig.colorbar(cf, ax=ax, label="Wind Speed (m/s)", shrink=0.8)
 
-        skip = (slice(None, None, 20), slice(None, None, 20))
-        ax.quiver(
-            lon[skip], lat[skip], u_dir[skip], v_dir[skip],
-            color="black", scale=50, width=0.003, transform=ccrs.PlateCarree(),
+        skip = (slice(None, None, 5), slice(None, None, 5))
+        ax.streamplot(
+            lon[skip], lat[skip], u[skip], v[skip],
+            color="black", linewidth=0.8, density=1.5, arrowsize=0.8,
         )
 
         times = wrf_processing.get_times()
@@ -230,12 +245,46 @@ def plot_jet_stream(time_index: int = 0) -> tuple[str, str]:
 FIELD_PLOTTERS = {
     "surface_wind": plot_surface_wind,
     "surface_pressure": plot_surface_pressure,
+    "mslp": plot_mslp,
     "surface_temperature": plot_surface_temperature,
     "surface_precipitation": plot_precipitation,
     "z_t_850": functools.partial(plot_level_zt, 850),
     "z_t_500": functools.partial(plot_level_zt, 500),
     "jet_300": plot_jet_stream,
 }
+
+
+def plot_route_map(
+    route_points: list[dict],
+    origin: str,
+    destination: str,
+    origin_coords: tuple[float, float],
+    dest_coords: tuple[float, float],
+) -> tuple[str, str]:
+    """Plot the flight route on a geographical map."""
+    proj = _get_projection()
+    lat, lon = wrf_processing.get_coordinates()
+    lats = [p["lat"] for p in route_points]
+    lons = [p["lon"] for p in route_points]
+
+    fig, ax = plt.subplots(figsize=(12, 8), subplot_kw={"projection": proj})
+    try:
+        ax.set_extent([lon.min(), lon.max(), lat.min(), lat.max()], crs=proj)
+        ax.add_feature(cfeature.COASTLINE, linewidth=0.8)
+        ax.add_feature(cfeature.BORDERS, linewidth=0.5)
+        ax.gridlines(draw_labels=True, linestyle="--", alpha=0.5)
+
+        ax.plot(lons, lats, "b-", linewidth=2, transform=ccrs.PlateCarree(), label="Flight path")
+        ax.plot(lons[0], lats[0], "go", markersize=10, transform=ccrs.PlateCarree(), label=f"Origin: {origin}")
+        ax.plot(lons[-1], lats[-1], "ro", markersize=10, transform=ccrs.PlateCarree(), label=f"Destination: {destination}")
+
+        ax.legend(loc="upper right")
+        ax.set_title(f"Flight Route: {origin} -> {destination}")
+
+        return fig_to_base64(fig), f"Route Map: {origin} -> {destination}"
+    except Exception:
+        plt.close(fig)
+        raise
 
 
 def generate_map(field: str, time_index: int = 0) -> tuple[str, str]:
@@ -267,32 +316,33 @@ def plot_route_cross_section(
     Args:
         route_points: list of dicts with lat, lon, distance_km
         profile: list of dicts with altitude_m, distance_km
-        risks: dict with keys 'icing', 'wind_shear', 'convection_visibility',
-               each a list of bools per route point
+        risks: dict with keys 'icing', 'wind_shear', 'turbulence',
+               'convection', 'visibility', each a list of bools per route point
     """
-    distances = [p["distance_km"] for p in route_points]
-    altitudes = [p["altitude_m"] for p in profile]
+    distances = np.array([p["distance_km"] for p in route_points])
+    altitudes = np.array([p["altitude_m"] for p in profile])
+    y_max = max(altitudes) * 1.15
+    band_half = 500.0
 
     fig, ax = plt.subplots(figsize=(14, 7))
     try:
-        icing_mask = risks.get("icing", [False] * len(distances))
-        shear_mask = risks.get("wind_shear", [False] * len(distances))
-        conv_mask = risks.get("convection_visibility", [False] * len(distances))
+        risk_configs = [
+            ("icing", "cyan", "Icing"),
+            ("wind_shear", "orange", "Wind shear"),
+            ("turbulence", "purple", "Turbulence"),
+            ("convection", "red", "Convection"),
+            ("visibility", "yellow", "Low visibility"),
+        ]
 
-        if any(icing_mask):
+        for key, color, label in risk_configs:
+            mask = np.array(risks.get(key, [False] * len(distances)))
+            if not mask.any():
+                continue
+            lower = np.maximum(0, altitudes - band_half)
+            upper = altitudes + band_half
             ax.fill_between(
-                distances, 0, max(altitudes) * 1.1,
-                where=icing_mask, alpha=0.3, color="cyan", label="Icing risk",
-            )
-        if any(shear_mask):
-            ax.fill_between(
-                distances, 0, max(altitudes) * 1.1,
-                where=shear_mask, alpha=0.3, color="orange", label="Wind shear",
-            )
-        if any(conv_mask):
-            ax.fill_between(
-                distances, 0, max(altitudes) * 1.1,
-                where=conv_mask, alpha=0.3, color="red", label="Convection/Visibility",
+                distances, lower, upper,
+                where=mask, alpha=0.35, color=color, label=label, step=None,
             )
 
         ax.plot(distances, altitudes, "b-", linewidth=2, label="Flight profile")
@@ -305,7 +355,7 @@ def plot_route_cross_section(
         )
         ax.legend(loc="upper right")
         ax.grid(True, alpha=0.3)
-        ax.set_ylim(0, max(altitudes) * 1.15)
+        ax.set_ylim(0, y_max)
 
         return fig_to_base64(fig), f"Route: {origin} -> {destination}"
     except Exception:
