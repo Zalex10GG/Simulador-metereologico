@@ -532,8 +532,9 @@ footer {
 }
 
 .modal-header {
+    position: relative;
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     margin-bottom: 1.5rem;
     border-bottom: 1px solid var(--border-color);
@@ -544,9 +545,15 @@ footer {
     font-size: 1.4rem;
     font-weight: 600;
     color: var(--text-primary);
+    text-align: center;
+    width: 100%;
 }
 
 .close-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
     background: none;
     border: none;
     color: var(--text-secondary);
