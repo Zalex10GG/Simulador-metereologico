@@ -404,8 +404,8 @@ def plot_sounding(profile: dict, lat: float, lon: float, time_label: str) -> tup
         skew.ax.set_ylabel('Presión (hPa)')
         skew.ax.legend(loc='upper left')
 
-        # 2. Hodograph (right-top)
-        ax_hodo = fig.add_subplot(gs[0, 2])
+        # 2. Hodograph (columna derecha ocupando todo el alto)
+        ax_hodo = fig.add_subplot(gs[:, 2])
         hodo_range = max(float(np.max(np.abs(profile["u_wind"]))), float(np.max(np.abs(profile["v_wind"]))), 20.0)
         h = Hodograph(ax_hodo, component_range=hodo_range)
         h.add_grid(increment=10, color='gray', linestyle='--', alpha=0.5)
