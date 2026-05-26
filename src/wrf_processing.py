@@ -266,8 +266,9 @@ def get_vertical_profile(lat_idx: int, lon_idx: int, time_index: int = 0) -> dic
     temp = compute_temperature(time_index).isel(south_north=lat_idx, west_east=lon_idx)
     z = compute_geopotential_height(time_index).isel(south_north=lat_idx, west_east=lon_idx)
 
-    u = destagger_u(ds["U"]).isel(Time=0, south_north=lat_idx, west_east=lon_idx)
-    v = destagger_v(ds["V"]).isel(Time=0, south_north=lat_idx, west_east=lon_idx)
+    u = destagger_u(ds["U"]).isel(Time=0, south_north=lat_idx, west_east_stag=lon_idx)
+    v = destagger_v(ds["V"]).isel(Time=0, south_north_stag=lat_idx, west_east=lon_idx)
+
     qv = ds["QVAPOR"].isel(Time=0, south_north=lat_idx, west_east=lon_idx).values
 
     # Calcular dewpoint usando MetPy
