@@ -5,7 +5,6 @@ import numpy as np
 from src.config import (
     CONVECTION_PRECIP_THRESHOLD,
     ICING_HYDROMETEOR_THRESHOLD,
-    TURBULENCE_WIND_SPEED_THRESHOLD,
     VISIBILITY_QCLOUD_THRESHOLD,
     WIND_SHEAR_HORIZONTAL_THRESHOLD,
     WIND_SHEAR_VERTICAL_THRESHOLD,
@@ -77,38 +76,23 @@ def compute_icing_risk(profile: list[dict]) -> list[bool]:
         hl = hydro_cache[t_left]
         qcloud0 = float(hl["qcloud"][flight_level_left, lat_idx, lon_idx])
         qrain0 = float(hl["qrain"][flight_level_left, lat_idx, lon_idx])
-        qice0 = float(hl["qice"][flight_level_left, lat_idx, lon_idx])
-        qsnow0 = float(hl["qsnow"][flight_level_left, lat_idx, lon_idx])
-        qgraupel0 = float(hl["qgraupel"][flight_level_left, lat_idx, lon_idx])
 
         if t_left != t_right and t_frac > 0:
             hr = hydro_cache[t_right]
             qcloud1 = float(hr["qcloud"][flight_level_right, lat_idx, lon_idx])
             qrain1 = float(hr["qrain"][flight_level_right, lat_idx, lon_idx])
-            qice1 = float(hr["qice"][flight_level_right, lat_idx, lon_idx])
-            qsnow1 = float(hr["qsnow"][flight_level_right, lat_idx, lon_idx])
-            qgraupel1 = float(hr["qgraupel"][flight_level_right, lat_idx, lon_idx])
 
             qcloud_val = _interpolate_temporal(qcloud0, qcloud1, t_frac)
             qrain_val = _interpolate_temporal(qrain0, qrain1, t_frac)
-            qice_val = _interpolate_temporal(qice0, qice1, t_frac)
-            qsnow_val = _interpolate_temporal(qsnow0, qsnow1, t_frac)
-            qgraupel_val = _interpolate_temporal(qgraupel0, qgraupel1, t_frac)
         else:
             qcloud_val = qcloud0
             qrain_val = qrain0
-            qice_val = qice0
-            qsnow_val = qsnow0
-            qgraupel_val = qgraupel0
 
-        has_hydrometeors = (
+        has_supercooled_liquid = (
             qcloud_val > ICING_HYDROMETEOR_THRESHOLD
             or qrain_val > ICING_HYDROMETEOR_THRESHOLD
-            or qice_val > ICING_HYDROMETEOR_THRESHOLD
-            or qsnow_val > ICING_HYDROMETEOR_THRESHOLD
-            or qgraupel_val > ICING_HYDROMETEOR_THRESHOLD
         )
-        risks.append(temp_at_point < 0.0 and has_hydrometeors)
+        risks.append(temp_at_point < 0.0 and has_supercooled_liquid)
 
     return risks
 
@@ -219,9 +203,9 @@ def compute_wind_shear_risk(profile: list[dict]) -> list[bool]:
 def compute_turbulence_risk(profile: list[dict]) -> list[bool]:
     """Compute Clear Air Turbulence (CAT) risk along the route.
 
-    Flags points where horizontal wind speed magnitude exceeds a threshold
-    (indicating potential for CAT at flight level), combined with significant
-    gradients in wind speed between consecutive route points.
+    Uses horizontal wind shear (vector difference between consecutive points)
+    as a proxy for CAT, which is a standard simplified approach. High shear
+    zones are where turbulence is most likely at flight level.
     """
     _enrich_profile_with_grid_indices(profile)
     risks = []
@@ -235,7 +219,8 @@ def compute_turbulence_risk(profile: list[dict]) -> list[bool]:
         v_cache[t] = wrf_processing.destagger_v(ds["V"]).isel(Time=0).values
 
     n_levels = next(iter(u_cache.values())).shape[0] if u_cache else 47
-    prev_speed = None
+    prev_u = None
+    prev_v = None
 
     for i, point in enumerate(profile):
         lat_idx, lon_idx = point["grid_idx"]
@@ -257,20 +242,19 @@ def compute_turbulence_risk(profile: list[dict]) -> list[bool]:
             u_at_point = u0
             v_at_point = v0
 
-        speed = np.sqrt(u_at_point**2 + v_at_point**2)
         turbulence = False
-
-        if speed > TURBULENCE_WIND_SPEED_THRESHOLD:
-            turbulence = True
-
-        if prev_speed is not None and i > 0:
-            dspeed = abs(speed - prev_speed)
+        if prev_u is not None and i > 0:
+            du = abs(u_at_point - prev_u)
+            dv = abs(v_at_point - prev_v)
             dx_km = profile[i]["distance_km"] - profile[i - 1]["distance_km"]
-            if dx_km > 0.01 and dspeed / dx_km > WIND_SHEAR_HORIZONTAL_THRESHOLD * 50:
-                turbulence = True
+            if dx_km > 0.01:
+                dx_m = dx_km * 1000.0
+                if np.sqrt(du**2 + dv**2) / dx_m > WIND_SHEAR_HORIZONTAL_THRESHOLD * 2:
+                    turbulence = True
 
         risks.append(turbulence)
-        prev_speed = speed
+        prev_u = u_at_point
+        prev_v = v_at_point
 
     return risks
 
