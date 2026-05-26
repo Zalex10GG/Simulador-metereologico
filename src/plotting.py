@@ -379,12 +379,13 @@ def plot_sounding(profile: dict, lat: float, lon: float, time_label: str) -> tup
     u = profile["u_wind"] * units('m/s')
     v = profile["v_wind"] * units('m/s')
 
-    fig = plt.figure(figsize=(14, 9))
+    fig = plt.figure(figsize=(15, 8))
     try:
-        gs = GridSpec(3, 3, figure=fig, wspace=0.3, hspace=0.3)
+        # 1 fila, 2 columnas con anchos más equilibrados para igualar alturas
+        gs = GridSpec(1, 2, figure=fig, width_ratios=[1.6, 1.4], wspace=0.3)
 
         # 1. Skew-T Log-P
-        skew = SkewT(fig, subplot=gs[:, :2])
+        skew = SkewT(fig, subplot=gs[0, 0])
         skew.plot(p, t, 'r', linewidth=2, label='Temperatura')
         skew.plot(p, td, 'g', linewidth=2, label='Temperatura de Rocío')
 
@@ -404,19 +405,21 @@ def plot_sounding(profile: dict, lat: float, lon: float, time_label: str) -> tup
         skew.ax.set_ylabel('Presión (hPa)')
         skew.ax.legend(loc='upper left')
 
-        # 2. Hodograph (columna derecha ocupando todo el alto)
-        ax_hodo = fig.add_subplot(gs[:, 2])
+        # 2. Hodograph (ocupando toda la altura de la columna 1)
+        ax_hodo = fig.add_subplot(gs[0, 1])
         hodo_range = max(float(np.max(np.abs(profile["u_wind"]))), float(np.max(np.abs(profile["v_wind"]))), 20.0)
         h = Hodograph(ax_hodo, component_range=hodo_range)
         h.add_grid(increment=10, color='gray', linestyle='--', alpha=0.5)
 
-        # Plot hodograph line colored by pressure height
-        h.plot_colormapped(u, v, profile["pressure"] / 100.0, cmap='jet')
-        ax_hodo.set_title('Odógrafa (m/s)', fontsize=10)
+        # Plot hodograph line colored by pressure height and add colorbar as legend
+        cb = h.plot_colormapped(u, v, profile["pressure"] / 100.0, cmap='jet')
+        cbar = fig.colorbar(cb, ax=ax_hodo, label='Presión (hPa)', shrink=0.85, pad=0.08)
+        
+        ax_hodo.set_title('Odógrafa (m/s)', fontsize=11, fontweight='bold', pad=10)
 
         # Title and info
         title = f"Sondeo Atmosférico - Lat: {lat:.2f}, Lon: {lon:.2f} - {time_label}"
-        fig.suptitle(title, fontsize=14, fontweight='bold')
+        fig.suptitle(title, fontsize=14, fontweight='bold', y=0.98)
 
         return fig_to_base64(fig), title
     except Exception:
