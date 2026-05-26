@@ -361,3 +361,65 @@ def plot_route_cross_section(
     except Exception:
         plt.close(fig)
         raise
+
+
+def plot_sounding(profile: dict, lat: float, lon: float, time_label: str) -> tuple[str, str]:
+    """Plot Skew-T log-P and Hodograph for a vertical profile.
+
+    Returns (image_base64, title).
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
+    from metpy.plots import SkewT, Hodograph
+    from metpy.units import units
+
+    p = (profile["pressure"] / 100.0) * units.hPa
+    t = (profile["temperature"] - 273.15) * units.degC
+    td = (profile["dewpoint"] - 273.15) * units.degC
+    u = profile["u_wind"] * units('m/s')
+    v = profile["v_wind"] * units('m/s')
+
+    fig = plt.figure(figsize=(14, 9))
+    try:
+        gs = GridSpec(3, 3, figure=fig, wspace=0.3, hspace=0.3)
+
+        # 1. Skew-T Log-P
+        skew = SkewT(fig, subplot=gs[:, :2])
+        skew.plot(p, t, 'r', linewidth=2, label='Temperatura')
+        skew.plot(p, td, 'g', linewidth=2, label='Temperatura de Rocío')
+
+        # Plot wind barbs (only every 2nd level to avoid clutter)
+        skip = slice(None, None, 2)
+        skew.plot_barbs(p[skip], u[skip], v[skip], xloc=1.05)
+
+        skew.ax.set_ylim(1000, 100)
+        skew.ax.set_xlim(-40, 40)
+
+        # Add thermodynamic reference lines
+        skew.plot_dry_adiabats(alpha=0.25, color='orange')
+        skew.plot_moist_adiabats(alpha=0.25, color='green')
+        skew.plot_mixing_lines(alpha=0.25, color='blue')
+
+        skew.ax.set_xlabel('Temperatura (°C)')
+        skew.ax.set_ylabel('Presión (hPa)')
+        skew.ax.legend(loc='upper left')
+
+        # 2. Hodograph (right-top)
+        ax_hodo = fig.add_subplot(gs[0, 2])
+        hodo_range = max(float(np.max(np.abs(profile["u_wind"]))), float(np.max(np.abs(profile["v_wind"]))), 20.0)
+        h = Hodograph(ax_hodo, component_range=hodo_range)
+        h.add_grid(increment=10, color='gray', linestyle='--', alpha=0.5)
+
+        # Plot hodograph line colored by pressure height
+        h.plot_colormapped(u, v, profile["pressure"] / 100.0, cmap='jet')
+        ax_hodo.set_title('Odógrafa (m/s)', fontsize=10)
+
+        # Title and info
+        title = f"Sondeo Atmosférico - Lat: {lat:.2f}, Lon: {lon:.2f} - {time_label}"
+        fig.suptitle(title, fontsize=14, fontweight='bold')
+
+        return fig_to_base64(fig), title
+    except Exception:
+        plt.close(fig)
+        raise
+
