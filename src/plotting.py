@@ -418,7 +418,7 @@ def plot_sounding(profile: dict, lat: float, lon: float, time_label: str) -> tup
         ax_hodo.set_title('Odógrafa (m/s)', fontsize=11, fontweight='bold', pad=10)
 
         # Title and info
-        title = f"Sondeo Atmosférico - Lat: {lat:.2f}, Lon: {lon:.2f} - {time_label}"
+        title = f"Sondeo Atmosférico — {time_label}"
         fig.suptitle(title, fontsize=14, fontweight='bold', y=0.98)
 
         return fig_to_base64(fig), title
