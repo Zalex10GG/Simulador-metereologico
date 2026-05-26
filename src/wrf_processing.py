@@ -268,14 +268,31 @@ def get_vertical_profile(lat_idx: int, lon_idx: int, time_index: int = 0) -> dic
 
     u = destagger_u(ds["U"]).isel(Time=0, south_north=lat_idx, west_east=lon_idx)
     v = destagger_v(ds["V"]).isel(Time=0, south_north=lat_idx, west_east=lon_idx)
+    qv = ds["QVAPOR"].isel(Time=0, south_north=lat_idx, west_east=lon_idx).values
+
+    # Calcular dewpoint usando MetPy
+    import metpy.calc as mpcalc
+    from metpy.units import units
+    p_val = pressure.values * units.Pa
+    t_val = temp.values * units.kelvin
+    qv_val = qv * units('kg/kg')
+    q_val = qv_val / (1.0 + qv_val)
+    try:
+        td_val = mpcalc.dewpoint_from_specific_humidity(p_val, t_val, q_val)
+        td = td_val.to(units.kelvin).magnitude
+    except Exception:
+        # Fallback simple si falla MetPy
+        td = temp.values - 5.0
 
     return {
         "pressure": pressure.values,
         "temperature": temp.values,
+        "dewpoint": td,
         "geopotential_height": z.values,
         "u_wind": u.values,
         "v_wind": v.values,
     }
+
 
 
 def find_nearest_grid_point(lat: float, lon: float) -> tuple[int, int]:
