@@ -1,164 +1,230 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Simulador meteorológico de rutas aeronáuticas con datos WRF en tiempo real para pilotos y planificadores.">
-    <title>AeroMetar - Simulador Meteorológico de Rutas</title>
-    <!-- Google Fonts Inter for modern layout -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-    <div class="glass-bg"></div>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            name="description"
+            content="Simulador meteorológico de rutas aeronáuticas con datos WRF en tiempo real para pilotos y planificadores."
+        />
+        <title>AeroMetar - Simulador Meteorológico de Rutas</title>
+        <!-- Google Fonts Inter for modern layout -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="/static/style.css" />
+    </head>
+    <body>
+        <div class="glass-bg"></div>
 
-    <header>
-        <div class="header-content">
-            <div class="logo">
-                <span class="plane-icon">✈</span>
-                <h1>AeroMetar</h1>
-            </div>
-            <p class="subtitle">Simulador Meteorológico Mesoescalar de Rutas Aeronáuticas</p>
-        </div>
-    </header>
-
-    <main class="container">
-        <!-- Controls Panel -->
-        <aside class="panel controls-panel">
-            <h2>Configuración de Vuelo</h2>
-            
-            <div class="form-group">
-                <label for="origin">Aeropuerto de Origen</label>
-                <div class="select-wrapper">
-                    <select id="origin"></select>
+        <header>
+            <div class="header-content">
+                <div class="logo">
+                    <span class="plane-icon">✈</span>
+                    <h1>AeroMetar</h1>
                 </div>
+                <p class="subtitle">
+                    Simulador Meteorológico Mesoescalar de Rutas Aeronáuticas
+                </p>
             </div>
+        </header>
 
-            <div class="form-group">
-                <label for="destination">Aeropuerto de Destino</label>
-                <div class="select-wrapper">
-                    <select id="destination"></select>
+        <main class="container">
+            <!-- Controls Panel -->
+            <aside class="panel controls-panel">
+                <h2>Configuración de Vuelo</h2>
+
+                <div class="form-group">
+                    <label for="origin">Aeropuerto de Origen</label>
+                    <div class="select-wrapper">
+                        <select id="origin"></select>
+                    </div>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="field">Campo Meteorológico 2D</label>
-                <div class="select-wrapper">
-                    <select id="field"></select>
+                <div class="form-group">
+                    <label for="destination">Aeropuerto de Destino</label>
+                    <div class="select-wrapper">
+                        <select id="destination"></select>
+                    </div>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="cruiseLevel">Nivel de Vuelo</label>
-                <div class="select-wrapper">
-                    <select id="cruiseLevel">
-                        <option value="FL240">FL240 (7.315 m)</option>
-                        <option value="FL330" selected>FL330 (10.058 m)</option>
-                        <option value="FL380">FL380 (11.582 m)</option>
-                    </select>
+                <div class="form-group">
+                    <label for="field">Campo Meteorológico 2D</label>
+                    <div class="select-wrapper">
+                        <select id="field"></select>
+                    </div>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="timeIndex">Timestep de Simulación</label>
-                <div class="select-wrapper">
-                    <select id="timeIndex"></select>
+                <div class="form-group">
+                    <label for="cruiseLevel">Nivel de Vuelo</label>
+                    <div class="select-wrapper">
+                        <select id="cruiseLevel">
+                            <option value="FL240">FL240 (7.315 m)</option>
+                            <option value="FL330" selected>
+                                FL330 (10.058 m)
+                            </option>
+                            <option value="FL380">FL380 (11.582 m)</option>
+                        </select>
+                    </div>
                 </div>
-            </div>
 
-            <div class="button-group">
-                <button id="btnMap" class="btn btn-primary">
-                    <span class="btn-icon">🗺</span> Generar Mapa 2D
-                </button>
-                <button id="btnRoute" class="btn btn-secondary">
-                    <span class="btn-icon">⚡</span> Simular Ruta 3D
-                </button>
-                <button id="btnAnimate" class="btn btn-accent">
-                    <span class="btn-icon">▶</span> Animar Timesteps
-                </button>
-            </div>
-        </aside>
-
-        <!-- Output Panel -->
-        <section class="panel output-panel">
-            <h2>Resultados e Instrumental</h2>
-
-            <div id="initLoading" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Cargando datos meteorológicos...</p>
-            </div>
-
-            <div id="loading" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Analizando la atmósfera mesoescalar...</p>
-            </div>
-
-            <div id="error" class="error hidden"></div>
-
-            <div id="welcomeContainer" class="welcome-box">
-                <div class="welcome-icon">📡</div>
-                <h3>Instrumental Listo</h3>
-                <p>Selecciona las ciudades y campos meteorológicos, luego haz clic en <strong>Generar Mapa 2D</strong> para analizar la situación horizontal, o en <strong>Simular Ruta 3D</strong> para simular el perfil vertical de vuelo con sus riesgos asociados.</p>
-            </div>
-
-            <!-- Horizontal Map Output -->
-            <div id="mapContainer" class="image-container hidden">
-                <div class="image-header">
-                    <h3 id="mapTitle"></h3>
-                    <span class="badge badge-info">Vista Horizontal</span>
+                <div class="form-group">
+                    <label for="timeIndex">Timestep de Simulación</label>
+                    <div class="select-wrapper">
+                        <select id="timeIndex"></select>
+                    </div>
                 </div>
-                <div class="img-wrapper">
-                    <img id="mapImage" src="" alt="Mapa meteorológico horizontal">
-                </div>
-            </div>
 
-            <!-- Route Cross-Section Output -->
-            <div id="routeContainer" class="image-container hidden">
-                <div class="image-header">
-                    <h3 id="routeTitle"></h3>
-                    <span class="badge badge-warning">Perfil Vertical</span>
+                <div class="button-group">
+                    <button id="btnMap" class="btn btn-primary">
+                        <span class="btn-icon">🗺</span> Generar Mapa 2D
+                    </button>
+                    <button id="btnRoute" class="btn btn-secondary">
+                        <span class="btn-icon">⚡</span> Simular Ruta 3D
+                    </button>
+                    <button id="btnAnimate" class="btn btn-accent">
+                        <span class="btn-icon">▶</span> Animar Timesteps
+                    </button>
                 </div>
-                <div class="img-wrapper">
-                    <img id="routeImage" src="" alt="Perfil vertical de ruta aeronáutica">
-                </div>
-                <div class="image-header" style="margin-top: 1rem;">
-                    <h3>Trayectoria en Mapa</h3>
-                    <span class="badge badge-info">Vista Horizontal</span>
-                </div>
-                <div class="img-wrapper">
-                    <img id="routeMapImage" src="" alt="Mapa de trayectoria de vuelo">
-                </div>
-                <div id="routeSummary" class="summary hidden"></div>
-            </div>
-        </section>
-    </main>
-    
-    <!-- Sounding Modal -->
-    <div id="soundingModal" class="modal hidden">
-        <div class="modal-content glass-bg">
-            <div class="modal-header">
-                <h3 id="soundingTitle">Sondeo Atmosférico</h3>
-                <button id="closeSoundingModal" class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem;">
-                <div id="soundingLoading" class="loading hidden" style="padding: 1.5rem 0;">
+            </aside>
+
+            <!-- Output Panel -->
+            <section class="panel output-panel">
+                <h2>Resultados e Instrumental</h2>
+
+                <div id="initLoading" class="loading hidden">
                     <div class="spinner"></div>
-                    <p>Generando sondeo termodinámico (Skew-T y Odógrafa)...</p>
+                    <p>Cargando datos meteorológicos...</p>
                 </div>
-                <div id="soundingImgWrapper" class="img-wrapper hidden" style="width: 100%; display: flex; justify-content: center;">
-                    <img id="soundingImage" src="" alt="Sondeo Skew-T y Odógrafa" style="max-height: 70vh; width: auto; max-width: 100%;">
+
+                <div id="loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Analizando la atmósfera mesoescalar...</p>
                 </div>
-                <div id="soundingCoords" class="sounding-coords-info"></div>
+
+                <div id="error" class="error hidden"></div>
+
+                <div id="welcomeContainer" class="welcome-box">
+                    <div class="welcome-icon">📡</div>
+                    <h3>Instrumental Listo</h3>
+                    <p>
+                        Selecciona las ciudades y campos meteorológicos, luego
+                        haz clic en <strong>Generar Mapa 2D</strong> para
+                        analizar la situación horizontal, o en
+                        <strong>Simular Ruta 3D</strong> para simular el perfil
+                        vertical de vuelo con sus riesgos asociados.
+                    </p>
+                </div>
+
+                <!-- Horizontal Map Output -->
+                <div id="mapContainer" class="image-container hidden">
+                    <div class="image-header">
+                        <h3 id="mapTitle"></h3>
+                        <span class="badge badge-info">Vista Horizontal</span>
+                    </div>
+                    <div class="img-wrapper">
+                        <img
+                            id="mapImage"
+                            src=""
+                            alt="Mapa meteorológico horizontal"
+                        />
+                    </div>
+                </div>
+
+                <!-- Route Cross-Section Output -->
+                <div id="routeContainer" class="image-container hidden">
+                    <div class="image-header">
+                        <h3 id="routeTitle"></h3>
+                        <span class="badge badge-warning">Perfil Vertical</span>
+                    </div>
+                    <div class="img-wrapper">
+                        <img
+                            id="routeImage"
+                            src=""
+                            alt="Perfil vertical de ruta aeronáutica"
+                        />
+                    </div>
+                    <div class="image-header" style="margin-top: 1rem">
+                        <h3>Trayectoria en Mapa</h3>
+                        <span class="badge badge-info">Vista Horizontal</span>
+                    </div>
+                    <div class="img-wrapper">
+                        <img
+                            id="routeMapImage"
+                            src=""
+                            alt="Mapa de trayectoria de vuelo"
+                        />
+                    </div>
+                    <div id="routeSummary" class="summary hidden"></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Sounding Modal -->
+        <div id="soundingModal" class="modal hidden">
+            <div class="modal-content glass-bg">
+                <div class="modal-header">
+                    <h3 id="soundingTitle">Sondeo Atmosférico</h3>
+                    <button id="closeSoundingModal" class="close-btn">
+                        &times;
+                    </button>
+                </div>
+                <div
+                    class="modal-body"
+                    style="
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 1rem;
+                    "
+                >
+                    <div
+                        id="soundingLoading"
+                        class="loading hidden"
+                        style="padding: 1.5rem 0"
+                    >
+                        <div class="spinner"></div>
+                        <p>
+                            Generando sondeo termodinámico (Skew-T y
+                            Odógrafa)...
+                        </p>
+                    </div>
+                    <div
+                        id="soundingImgWrapper"
+                        class="img-wrapper hidden"
+                        style="
+                            width: 100%;
+                            display: flex;
+                            justify-content: center;
+                        "
+                    >
+                        <img
+                            id="soundingImage"
+                            src=""
+                            alt="Sondeo Skew-T y Odógrafa"
+                            style="
+                                max-height: 70vh;
+                                width: auto;
+                                max-width: 100%;
+                            "
+                        />
+                    </div>
+                    <div id="soundingCoords" class="sounding-coords-info"></div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <footer>
-        <p>&copy; 2026 AeroMetar | Guillermo Alba Buitrón & Alejandro Gil Getino | ⛓️⛓️Universidad de León⛓️⛓️ (🗣️🔊ayuda por favor, llamen a la policia, me están matando) </p>
-    </footer>
+        <footer>
+            <p>
+                &copy; 2026 AeroMetar | Guillermo Alba Buitrón & Alejandro Gil
+                Getino | ⛓️⛓️Universidad de León⛓️⛓️
+            </p>
+        </footer>
 
-    <script src="/static/script.js"></script>
-</body>
+        <script src="/static/script.js"></script>
+    </body>
 </html>
