@@ -21,6 +21,7 @@ CITIES = {
     "Estocolmo": {"lat": 59.3293, "lon": 18.0686},
     "Helsinki": {"lat": 60.1699, "lon": 24.9384},
     "Atenas": {"lat": 37.9838, "lon": 23.7275},
+    "Santander": {"lat": 43.4628, "lon": -3.8050},
 }
 
 
