@@ -327,11 +327,11 @@ def plot_route_cross_section(
     fig, ax = plt.subplots(figsize=(14, 7))
     try:
         risk_configs = [
-            ("icing", "cyan", "Icing"),
-            ("wind_shear", "orange", "Wind shear"),
-            ("turbulence", "purple", "Turbulence"),
-            ("convection", "red", "Convection"),
-            ("visibility", "yellow", "Low visibility"),
+            ("icing", "#00e5ff", "Icing"),          # Neon Cyan
+            ("wind_shear", "#ff007f", "Wind shear"), # Neon Fuchsia/Rose
+            ("turbulence", "#7c4dff", "Turbulence"), # Neon Indigo/Violet
+            ("convection", "#ff3d00", "Convection"), # Neon Scarlet/Red
+            ("visibility", "#00e676", "Low visibility"), # Neon Green
         ]
 
         for key, color, label in risk_configs:
